@@ -31,12 +31,16 @@
     video, img.preview { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
     .placeholder { color: #aaa; font-size: 14px; }
     .row { display: flex; gap: 10px; margin-top: 10px; }
+    .row.wrap-row { flex-wrap: wrap; }
     button {
       flex: 1; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line);
       background: #fff; font: inherit; cursor: pointer;
     }
+    button.secondary { background: #fff; color: var(--accent); border-color: var(--accent); }
     button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
+    /* 隐藏的文件选择 input */
+    #albumInput { display: none; }
     .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
       background: rgba(0,0,0,0.85); color: #fff; padding: 10px 16px; border-radius: 999px;
       font-size: 14px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 99; max-width: 86vw; text-align: center; }
@@ -74,13 +78,16 @@
         <img id="preview" class="preview" hidden alt="预览">
         <div class="placeholder" id="placeholder">点击下方「开启摄像头」开始</div>
       </div>
-      <div class="row">
+      <div class="row wrap-row">
         <button id="btnCamera" type="button">开启摄像头</button>
         <button id="btnShoot" type="button" disabled>拍照</button>
+        <button id="btnAlbum" type="button" class="secondary">从相册选择</button>
         <button id="btnRetake" type="button" hidden>重拍</button>
       </div>
       <div class="meta" id="meta"></div>
     </div>
+
+    <input type="file" id="albumInput" accept="image/*">
 
     <div class="row">
       <button id="btnSave" class="primary" type="button" disabled>保存到 iCloud</button>
@@ -89,10 +96,11 @@
     <div class="card">
       <div class="help">
         <strong>使用说明</strong><br>
-        1. 拍完点「保存到 iCloud」，系统会弹出分享面板<br>
-        2. 选择「存储到文件」→ 找到 <code>iCloud Drive/EatSnap/</code> 根目录<br>
-        3. 文件名已编码日期与餐别（如 <code>2026-07-08_早_e3b0_153326.jpg</code>），Mac 端会自动归位<br>
-        4. Mac 端跑一次 <code>python -m server.identify</code> 即可识别
+        1. 直接「开启摄像头」拍照，或点「从相册选择」挑已有照片<br>
+        2. 选好后点「保存到 iCloud」，系统会弹出分享面板<br>
+        3. 选择「存储到文件」→ 找到 <code>iCloud Drive/EatSnap/</code> 根目录<br>
+        4. 文件名已编码日期与餐别（如 <code>2026-07-08_早_e3b0_153326.jpg</code>），Mac 端会自动归位<br>
+        5. Mac 端跑一次 <code>python -m server identify</code> 即可识别
       </div>
     </div>
 
@@ -108,8 +116,10 @@
     const placeholder = document.getElementById('placeholder');
     const btnCamera = document.getElementById('btnCamera');
     const btnShoot = document.getElementById('btnShoot');
+    const btnAlbum = document.getElementById('btnAlbum');
     const btnRetake = document.getElementById('btnRetake');
     const btnSave = document.getElementById('btnSave');
+    const albumInput = document.getElementById('albumInput');
     const remarkEl = document.getElementById('remark');
     const metaEl = document.getElementById('meta');
     const toast = document.getElementById('toast');
@@ -187,17 +197,58 @@
       ctx.drawImage(video, 0, 0);
       canvas.toBlob((blob) => {
         if (!blob) { showToast('拍照失败', true); return; }
-        capturedBlob = blob;
-        const filename = buildFilename();
-        capturedFile = new File([blob], filename, { type: 'image/jpeg' });
-        preview.src = URL.createObjectURL(blob);
-        preview.hidden = false;
-        video.hidden = true;
-        btnShoot.disabled = true;
-        btnRetake.hidden = false;
-        btnSave.disabled = false;
-        metaEl.textContent = `已拍：${(blob.size / 1024).toFixed(0)} KB · ${canvas.width}×${canvas.height}\n文件名：${filename}`;
+        adoptCapturedBlob(blob, `${canvas.width}×${canvas.height}`);
       }, 'image/jpeg', 0.9);
+    }
+
+    // 把抓到的 blob（拍照或相册选的）设为待保存，统一转 JPEG + 生成文件名
+    function adoptCapturedBlob(blob, dims) {
+      stopCamera();
+      const filename = buildFilename();
+      capturedBlob = blob;
+      capturedFile = new File([blob], filename, { type: 'image/jpeg' });
+      preview.src = URL.createObjectURL(blob);
+      preview.hidden = false;
+      video.hidden = true;
+      placeholder.hidden = true;
+      btnShoot.disabled = true;
+      btnRetake.hidden = false;
+      btnSave.disabled = false;
+      metaEl.textContent = `已准备：${(blob.size / 1024).toFixed(0)} KB · ${dims}\n文件名：${filename}`;
+    }
+
+    // 从相册/文件 App 选图
+    function pickFromAlbum() {
+      albumInput.value = ''; // 允许重复选同一张
+      albumInput.click();
+    }
+
+    async function onAlbumPicked(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return; // 用户取消
+      try {
+        // 用 Image + canvas 统一转 JPEG（兼容 HEIC/PNG/等）
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          URL.revokeObjectURL(url);
+          canvas.toBlob((blob) => {
+            if (!blob) { showToast('读取图片失败', true); return; }
+            adoptCapturedBlob(blob, `${canvas.width}×${canvas.height}`);
+          }, 'image/jpeg', 0.9);
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          showToast('无法读取该图片', true);
+        };
+        img.src = url;
+      } catch (err) {
+        showToast('选择失败：' + err.message, true);
+      }
     }
 
     function retake() {
@@ -205,8 +256,16 @@
       capturedFile = null;
       preview.hidden = true;
       preview.removeAttribute('src');
-      video.hidden = false;
-      btnShoot.disabled = false;
+      if (stream) {
+        // 摄像头流还活着 → 回到取景
+        video.hidden = false;
+        btnShoot.disabled = false;
+      } else {
+        // 摄像头未开（如选相册后）→ 回到空白初始态
+        video.hidden = true;
+        btnShoot.disabled = true;
+        placeholder.hidden = false;
+      }
       btnRetake.hidden = true;
       btnSave.disabled = true;
       metaEl.textContent = '';
@@ -235,6 +294,8 @@
 
     btnCamera.addEventListener('click', startCamera);
     btnShoot.addEventListener('click', shoot);
+    btnAlbum.addEventListener('click', pickFromAlbum);
+    albumInput.addEventListener('change', onAlbumPicked);
     btnRetake.addEventListener('click', retake);
     btnSave.addEventListener('click', saveToICloud);
     window.addEventListener('beforeunload', stopCamera);
