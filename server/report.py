@@ -114,9 +114,9 @@ def render_pages(cfg: AppConfig) -> list[Path]:
     for d in dates:
         rec = load_record(cfg, d)
         env = _env()
-        # 明细页 "← 概览" 指向 docs/reports/index.html（用 base='' 让 href='index.html'）
+        # 明细页 "← 概览" 指向 Pages 根 docs/index.html
         html = env.get_template("day.html").render(
-            record=rec, base="", generated_at=datetime.now().isoformat(timespec="seconds")
+            record=rec, base="../", generated_at=datetime.now().isoformat(timespec="seconds")
         )
         dest = pages_reports / f"{d}.html"
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -128,12 +128,7 @@ def render_pages(cfg: AppConfig) -> list[Path]:
                 if rel:
                     copy_into_reports(cfg, rel, pages_reports / "images")
 
-    # 2) docs/reports/index.html（reports 内概览）
-    #    base='' 让明细链接为 'X.html'、shot.html 链接为 '../shot.html'
-    #    shot 链接需要单独处理（base 不能同时给两个前缀）
-    out.append(render_index(cfg, out_dir=pages_reports, base="", shot_base="../"))
-
-    # 3) docs/index.html（Pages 根入口）
-    #    base='reports/' 让明细链接为 'reports/X.html'、shot.html 链接为 'shot.html'
+    # 2) docs/index.html（Pages 根入口）
+    #    明细链接前缀 'reports/'、shot.html 链接 'shot.html'
     out.append(render_index(cfg, out_dir=pages_root, base="reports/", shot_base=""))
     return out
