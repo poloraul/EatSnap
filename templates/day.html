@@ -2,30 +2,55 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>EatSnap · {{ record.date }}</title>
   <style>
-    body { font: 14px/1.6 -apple-system, "PingFang SC", Arial, sans-serif; margin: 0; background: #f6f5f1; color: #1f1f1f; }
-    .wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px; }
+    :root { --bg:#f6f5f1; --card:#fff; --text:#1f1f1f; --muted:#6b6b6b; --line:#e7e5df; --accent:#2f7d52; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+      font: 15px/1.55 -apple-system, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      -webkit-text-size-adjust: 100%; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 20px 14px 60px; }
     h1 { font-size: 22px; margin: 0 0 4px; }
-    .sub { color: #6b6b6b; font-size: 13px; margin-bottom: 20px; }
-    a { color: #2f7d52; text-decoration: none; }
-    .meal { background: #fff; border: 1px solid #e7e5df; border-radius: 10px; padding: 14px; margin-bottom: 16px; }
-    .meal h2 { margin: 0 0 8px; font-size: 16px; }
-    .entry { display: grid; grid-template-columns: 160px 1fr; gap: 12px; padding: 10px 0; border-top: 1px dashed #ece9e0; }
-    .entry:first-of-type { border-top: none; }
-    .entry img { width: 100%; height: 120px; object-fit: cover; border-radius: 8px; background: #ddd; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 4px 6px; text-align: left; font-size: 13px; }
-    th { color: #6b6b6b; font-weight: 500; }
-    .right { text-align: right; }
-    .subtotal { font-weight: 600; }
-    .status { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #eee; color: #555; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover, a:active { text-decoration: underline; }
+    .meta { color: #999; font-size: 12px; }
+    .gen { color: #999; font-size: 12px; margin-top: 16px; }
+
+    .meal { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+      padding: 14px; margin-bottom: 14px; }
+    .meal h2 { margin: 0 0 8px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+    .meal h2 .pill { font-size: 12px; font-weight: 500; color: var(--muted); }
+
+    .entry { padding: 12px 0; border-top: 1px dashed #ece9e0; }
+    .entry:first-of-type { border-top: none; padding-top: 4px; }
+    .entry img { display: block; width: 100%; max-width: 360px; height: auto; aspect-ratio: 4/3;
+      object-fit: cover; border-radius: 10px; background: #ddd; margin-bottom: 8px; }
+    .entry .head { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .status { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px;
+      background: #eee; color: #555; margin-left: 4px; }
     .status.review { background: #fff3cd; color: #856404; }
     .status.error { background: #f8d7da; color: #721c24; }
-    .meta { color: #999; font-size: 12px; }
-    .total { font-size: 18px; font-weight: 600; margin: 16px 0; }
-    .empty { color: #aaa; font-style: italic; }
+    .remark { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+
+    /* 食物条目：手机单行卡片（名称 + 右对齐数量），桌面表格 */
+    .items { background: #fafaf7; border-radius: 10px; overflow: hidden; }
+    .it { display: flex; justify-content: space-between; align-items: baseline;
+      padding: 8px 12px; border-bottom: 1px solid #ece9e0; font-size: 14px; }
+    .it:last-child { border-bottom: none; }
+    .it .name { flex: 1; min-width: 0; padding-right: 12px; }
+    .it .qty { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .it.subtotal { background: #f0eee8; font-weight: 600; color: var(--text); }
+    .it.subtotal .qty { color: var(--accent); }
+    .empty { color: #aaa; font-style: italic; padding: 6px 0; }
+
+    /* 桌面：图片栏 + 详情栏两列；缩略图固定宽度 */
+    @media (min-width: 720px) {
+      .wrap { padding: 24px 16px; }
+      .entry { display: grid; grid-template-columns: 200px 1fr; gap: 16px; }
+      .entry img { margin-bottom: 0; }
+    }
   </style>
 </head>
 <body>
@@ -35,37 +60,36 @@
     <div class="sub">日合计：<strong>{{ record.daily_total_kcal }} kcal</strong></div>
 
     {% for meal in ['早', '午', '晚', '加餐'] %}
+    {% set entries = record['meals'].get(meal, []) %}
     <div class="meal">
-      <h2>{{ meal }}餐</h2>
-      {% set entries = record['meals'].get(meal, []) %}
+      <h2>{{ meal }}餐 <span class="pill">{{ entries|length }} 条</span></h2>
       {% if entries %}
         {% for e in entries %}
         <div class="entry">
           <div>
-            {% if e.image %}<img src="images/{{ e.image }}" alt="">{% endif %}
-            <div class="meta">
+            {% if e.image %}<img src="images/{{ e.image }}" alt="" loading="lazy">{% endif %}
+            <div class="head">
               {% if e.model %}模型：{{ e.model }} · {% endif %}
               {{ e.identified_at or '' }}
               <span class="status {{ e.status }}">{{ e.status }}</span>
             </div>
           </div>
           <div>
-            {% if e.remark %}<div class="meta">备注：{{ e.remark }}</div>{% endif %}
+            {% if e.remark %}<div class="remark">备注：{{ e.remark }}</div>{% endif %}
             {% set entry_items = e['items'] %}
             {% if entry_items %}
-            <table>
-              <thead><tr><th>食物</th><th class="right">重量</th><th class="right">热量</th></tr></thead>
-              <tbody>
-                {% for it in entry_items %}
-                <tr>
-                  <td>{{ it.name }}{% if it.weight_approx %} <span class="meta">约</span>{% endif %}</td>
-                  <td class="right">{{ it.weight_g }} g</td>
-                  <td class="right">{{ it.calories_kcal }} kcal</td>
-                </tr>
-                {% endfor %}
-                <tr><td colspan="2" class="subtotal">小计</td><td class="right subtotal">{{ e.total_kcal }} kcal</td></tr>
-              </tbody>
-            </table>
+            <div class="items">
+              {% for it in entry_items %}
+              <div class="it">
+                <span class="name">{{ it.name }}{% if it.weight_approx %} <span class="meta">约</span>{% endif %}</span>
+                <span class="qty">{{ it.weight_g }} g · {{ it.calories_kcal }} kcal</span>
+              </div>
+              {% endfor %}
+              <div class="it subtotal">
+                <span class="name">小计</span>
+                <span class="qty">{{ e.total_kcal }} kcal</span>
+              </div>
+            </div>
             {% else %}
             <div class="empty">暂无条目（未识别或识别失败）</div>
             {% endif %}
@@ -78,7 +102,7 @@
     </div>
     {% endfor %}
 
-    <p class="meta">生成时间：{{ generated_at }}</p>
+    <p class="gen">生成时间：{{ generated_at }}</p>
   </div>
 </body>
 </html>

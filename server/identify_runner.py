@@ -1,4 +1,8 @@
-"""批量识别扫描：扫描当日未处理图片，逐张调用识别，结果写回 records。"""
+"""批量识别扫描：扫描当日未处理图片，逐张调用识别，结果写回 records。
+
+在识别前自动调用 ingest_pending()：把 iCloud 根目录下的扁平文件（来自
+tools/shot.html）按文件名归位到 {date}/{meal}/ 子目录。
+"""
 
 from __future__ import annotations
 
@@ -14,7 +18,7 @@ from .records import (
     is_image_processed,
     load_record,
 )
-from .storage import iter_images
+from .storage import ingest_pending, iter_images
 
 
 def identify_date(
@@ -26,8 +30,11 @@ def identify_date(
 ) -> dict[str, Any]:
     """扫描并识别指定日所有未处理图片。
 
-    Returns: {date, processed, skipped, failed, entries: [...]}
+    Returns: {date, processed, skipped, failed, ingested, model}
     """
+    # 先归位扁平文件（iOS 端拍的照片）
+    ingested = ingest_pending(cfg)
+
     record = load_record(cfg, date)
     identifier = make_identifier(cfg, model_name)
     processed: list[dict[str, Any]] = []
@@ -78,6 +85,7 @@ def identify_date(
         "date": date,
         "triggered_at": datetime.now().isoformat(timespec="seconds"),
         "model": model_name or cfg.default_model,
+        "ingested": ingested,
         "processed": processed,
         "skipped": skipped,
         "failed": failed,
