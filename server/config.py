@@ -26,6 +26,7 @@ class ModelConfig:
     provider: str
     model: str
     api_key_env: str
+    base_url: str | None = None  # 可选：覆盖默认 base URL
 
     def api_key(self) -> str | None:
         return os.environ.get(self.api_key_env)
@@ -92,6 +93,7 @@ def load_config(
             provider=str(spec["provider"]),
             model=str(spec["model"]),
             api_key_env=str(spec["api_key_env"]),
+            base_url=(str(spec["base_url"]) if spec.get("base_url") else None),
         )
 
     default_model = str(raw.get("default_model") or next(iter(models)))

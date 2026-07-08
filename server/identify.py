@@ -47,8 +47,12 @@ class Identifier(Protocol):
     def identify(self, image_path: str, remark: str) -> IdentifyResult: ...
 
 
-_LINE_RE = re.compile(r"^\s*([^，,]+?)\s*[,，]\s*(\d+(?:\.\d+)?)\s*g\s*[,，]\s*(\d+(?:\.\d+)?)\s*kcal\s*$")
-_TOTAL_RE = re.compile(r"总热量[，,]\s*(\d+(?:\.\d+)?)\s*kcal")
+# 行：名称，约 80g，约 18kcal  （"约"在数字前后可选）
+_LINE_RE = re.compile(
+    r"^\s*([^，,]+?)\s*[,，]\s*约?\s*(\d+(?:\.\d+)?)\s*g\s*[,，]\s*约?\s*(\d+(?:\.\d+)?)\s*kcal\s*$"
+)
+# 总热量行：总热量，约 18 kcal
+_TOTAL_RE = re.compile(r"总热量[，,]\s*约?\s*(\d+(?:\.\d+)?)\s*kcal")
 
 
 def parse_result_text(text: str) -> tuple[list[dict[str, Any]], int]:
@@ -73,11 +77,11 @@ def parse_result_text(text: str) -> tuple[list[dict[str, Any]], int]:
                 "weight_g": weight_g,
                 "calories_kcal": int(round(kcal)),
             }
-            if weight_g.is_integer() is False or any(c in name for c in ("约",)):
-                # 文本里有"约"或重量含小数，标记为约值
-                if "约" in name:
-                    item["name"] = name.replace("约", "").strip()
-                    item["weight_approx"] = True
+            # 文本里有"约"或重量含小数，标记为约值
+            has_approx = ("约" in name) or (not weight_g.is_integer()) or ("约" in line)
+            if has_approx:
+                item["name"] = name.replace("约", "").strip()
+                item["weight_approx"] = True
             items.append(item)
     if total is None:
         total = int(round(sum(it["calories_kcal"] for it in items)))
