@@ -15,6 +15,13 @@
     .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
     a { color: var(--accent); text-decoration: none; }
     a:hover, a:active { text-decoration: underline; }
+    /* 拍照主入口 */
+    .shoot-cta { display: block; background: var(--accent); color: #fff; text-align: center;
+      padding: 14px 16px; border-radius: 12px; font-size: 16px; font-weight: 600;
+      margin: 0 0 18px; box-shadow: 0 1px 0 rgba(0,0,0,0.04); }
+    .shoot-cta:hover, .shoot-cta:active { text-decoration: none; opacity: 0.92; }
+    .shoot-cta .icon { margin-right: 6px; }
+
     .gen { color: #999; font-size: 12px; margin-top: 16px; }
 
     /* 概览统计：手机单列堆叠，桌面横排 */
@@ -54,6 +61,8 @@
     <h1>EatSnap · 概览</h1>
     <div class="sub">共 1 天有记录（展示最近 1 天）</div>
 
+    <a class="shoot-cta" href="../shot.html"><span class="icon">📷</span>立即拍照记一餐</a>
+
 
     <div class="summary">
       <div class="box"><span class="k">有记录的天数</span><span class="v">1</span></div>
@@ -78,7 +87,7 @@
       </div>
     </div>
 
-    <p class="gen">生成时间：2026-07-08T17:21:56</p>
+    <p class="gen">生成时间：2026-07-08T17:30:20</p>
   </div>
 </body>
 </html>

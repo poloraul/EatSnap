@@ -43,12 +43,17 @@ def main_ingest(argv: list[str] | None = None) -> int:
 def main_report(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="python -m server report")
     p.add_argument("--date", default=None, help="YYYY-MM-DD；不传则全部")
+    p.add_argument("--pages", action="store_true", help="生成 GitHub Pages 静态资源（docs/index.html + docs/reports/）")
     args = p.parse_args(argv)
 
     cfg = load_config()
     if args.date:
         out = render_day(cfg, args.date)
         print(str(out))
+    elif args.pages:
+        from .report import render_pages
+        outs = [str(x) for x in render_pages(cfg)]
+        print("\n".join(outs))
     else:
         outs = [str(x) for x in render_all(cfg)]
         print("\n".join(outs))
