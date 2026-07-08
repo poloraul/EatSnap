@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <title>EatSnap · 拍食物记热量</title>
+  <style>
+    :root {
+      --bg: #f6f5f1;
+      --card: #ffffff;
+      --text: #1f1f1f;
+      --muted: #6b6b6b;
+      --accent: #2f7d52;
+      --accent-soft: #e6f3ec;
+      --border: #e7e5df;
+      --danger: #b3261e;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+      font: 16px/1.5 -apple-system, "PingFang SC", "Helvetica Neue", Arial, sans-serif; }
+    .wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 80px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 16px; margin-bottom: 14px; }
+    label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px; }
+    .meals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .meals label { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 10px 0; text-align: center; cursor: pointer; font-size: 15px; color: var(--text); }
+    .meals input { display: none; }
+    .meals input:checked + span { color: var(--accent); font-weight: 600; }
+    .meals label:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); }
+    input[type=text], textarea {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+      background: #fafaf7; font: inherit;
+    }
+    textarea { min-height: 64px; resize: vertical; }
+    .video-wrap { position: relative; width: 100%; aspect-ratio: 4/3; background: #111;
+      border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    video, canvas, img.preview { position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; }
+    .placeholder { color: #aaa; font-size: 14px; }
+    .row { display: flex; gap: 10px; margin-top: 10px; }
+    button {
+      flex: 1; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border);
+      background: #fff; font: inherit; cursor: pointer;
+    }
+    button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+      background: rgba(0,0,0,0.85); color: #fff; padding: 10px 16px; border-radius: 999px;
+      font-size: 14px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 99; }
+    .toast.show { opacity: 1; }
+    .meta { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>EatSnap</h1>
+    <div class="sub">拍食物照片，自动记录到本地与 iCloud 备份。</div>
+
+    <div class="card">
+      <label>选择餐别</label>
+      <div class="meals" id="meals">
+        <label><input type="radio" name="meal" value="早" checked><span>早餐</span></label>
+        <label><input type="radio" name="meal" value="午"><span>午餐</span></label>
+        <label><input type="radio" name="meal" value="晚"><span>晚餐</span></label>
+        <label><input type="radio" name="meal" value="加餐"><span>加餐</span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>备注（可选，给识别模型参考）</label>
+      <textarea id="remark" placeholder="例如：一碗牛肉面，少辣"></textarea>
+    </div>
+
+    <div class="card">
+      <div class="video-wrap" id="videoWrap">
+        <video id="video" playsinline autoplay muted></video>
+        <canvas id="canvas" hidden></canvas>
+        <img id="preview" class="preview" hidden alt="预览">
+        <div class="placeholder" id="placeholder">点击下方「开启摄像头」开始</div>
+      </div>
+      <div class="row">
+        <button id="btnCamera" type="button">开启摄像头</button>
+        <button id="btnShoot" type="button" disabled>拍照</button>
+        <button id="btnRetake" type="button" hidden>重拍</button>
+      </div>
+      <div class="meta" id="meta"></div>
+    </div>
+
+    <div class="row">
+      <button id="btnUpload" class="primary" type="button" disabled>上传</button>
+    </div>
+
+    <div class="footer">拍照后图片会保存到本机 iCloud Drive，并自动备份到云端。</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const preview = document.getElementById('preview');
+    const placeholder = document.getElementById('placeholder');
+    const btnCamera = document.getElementById('btnCamera');
+    const btnShoot = document.getElementById('btnShoot');
+    const btnRetake = document.getElementById('btnRetake');
+    const btnUpload = document.getElementById('btnUpload');
+    const remarkEl = document.getElementById('remark');
+    const metaEl = document.getElementById('meta');
+    const toast = document.getElementById('toast');
+
+    let stream = null;
+    let capturedBlob = null;
+
+    function showToast(msg, isErr) {
+      toast.textContent = msg;
+      toast.style.background = isErr ? 'rgba(179,38,30,0.9)' : 'rgba(0,0,0,0.85)';
+      toast.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    function getMeal() {
+      const el = document.querySelector('input[name="meal"]:checked');
+      return el ? el.value : '早';
+    }
+
+    async function startCamera() {
+      try {
+        // 手机优先后置摄像头
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1440 } },
+          audio: false,
+        });
+        video.srcObject = stream;
+        video.hidden = false;
+        preview.hidden = true;
+        placeholder.hidden = true;
+        btnShoot.disabled = false;
+        btnRetake.hidden = true;
+        btnUpload.disabled = true;
+        capturedBlob = null;
+        metaEl.textContent = '';
+      } catch (e) {
+        showToast('无法访问摄像头：' + e.message, true);
+      }
+    }
+
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+    }
+
+    function shoot() {
+      if (!video.videoWidth) return;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      canvas.toBlob((blob) => {
+        if (!blob) { showToast('拍照失败', true); return; }
+        capturedBlob = blob;
+        preview.src = URL.createObjectURL(blob);
+        preview.hidden = false;
+        video.hidden = true;
+        btnShoot.disabled = true;
+        btnRetake.hidden = false;
+        btnUpload.disabled = false;
+        metaEl.textContent = `已拍：${(blob.size / 1024).toFixed(0)} KB · ${canvas.width}×${canvas.height}`;
+      }, 'image/jpeg', 0.9);
+    }
+
+    function retake() {
+      capturedBlob = null;
+      preview.hidden = true;
+      preview.removeAttribute('src');
+      video.hidden = false;
+      btnShoot.disabled = false;
+      btnRetake.hidden = true;
+      btnUpload.disabled = true;
+      metaEl.textContent = '';
+    }
+
+    async function upload() {
+      if (!capturedBlob) return;
+      const fd = new FormData();
+      fd.append('meal', getMeal());
+      fd.append('remark', remarkEl.value || '');
+      fd.append('file', capturedBlob, 'snap.jpg');
+      btnUpload.disabled = true;
+      try {
+        const res = await fetch('/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.detail || '上传失败');
+        showToast(`已保存：${data.image}`);
+        retake();
+      } catch (e) {
+        showToast('上传失败：' + e.message, true);
+        btnUpload.disabled = false;
+      }
+    }
+
+    btnCamera.addEventListener('click', startCamera);
+    btnShoot.addEventListener('click', shoot);
+    btnRetake.addEventListener('click', retake);
+    btnUpload.addEventListener('click', upload);
+    window.addEventListener('beforeunload', stopCamera);
+  </script>
+</body>
+</html>

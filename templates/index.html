@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EatSnap · 概览</title>
+  <style>
+    body { font: 14px/1.6 -apple-system, "PingFang SC", Arial, sans-serif; margin: 0; background: #f6f5f1; color: #1f1f1f; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .sub { color: #6b6b6b; font-size: 13px; margin-bottom: 20px; }
+    .summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 24px; }
+    .summary .box { background: #fff; border: 1px solid #e7e5df; border-radius: 10px; padding: 12px; text-align: center; }
+    .summary .box .v { font-size: 18px; font-weight: 600; }
+    .summary .box .k { color: #6b6b6b; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e7e5df; border-radius: 10px; overflow: hidden; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #f0eee8; text-align: left; }
+    th { background: #fafaf7; font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+    .bar { display: inline-block; height: 8px; background: #2f7d52; border-radius: 4px; vertical-align: middle; }
+    a { color: #2f7d52; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .gen { color: #999; font-size: 12px; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>EatSnap · 概览</h1>
+    <div class="sub">共 {{ total_days }} 天有记录（展示最近 {{ days|length }} 天）</div>
+
+    <div class="summary">
+      {% set ns = namespace(max=0) %}
+      {% for d in days %}{% if d.total > ns.max %}{% set ns.max = d.total %}{% endif %}{% endfor %}
+      <div class="box"><div class="v">{{ total_days }}</div><div class="k">有记录的天数</div></div>
+      <div class="box"><div class="v">{{ recent }}</div><div class="k">展示近 N 天</div></div>
+      <div class="box"><div class="v">{{ ns.max }}</div><div class="k">区间最高 kcal</div></div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>早</th>
+          <th>午</th>
+          <th>晚</th>
+          <th>加餐</th>
+          <th>日合计</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in days %}
+        <tr>
+          <td><a href="{{ d.date }}.html">{{ d.date }}</a></td>
+          <td>{{ d.meals['早'] }}</td>
+          <td>{{ d.meals['午'] }}</td>
+          <td>{{ d.meals['晚'] }}</td>
+          <td>{{ d.meals['加餐'] }}</td>
+          <td>
+            {% if d.total > 0 and ns.max > 0 %}
+            <span class="bar" style="width: {{ (d.total / ns.max * 120)|int }}px"></span>
+            {% endif %}
+            <strong>{{ d.total }}</strong> kcal
+          </td>
+          <td><a href="{{ d.date }}.html">明细 →</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">还没有记录。先在采集页拍一张并上传，再触发识别。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <p class="gen">生成时间：{{ generated_at }}</p>
+  </div>
+</body>
+</html>

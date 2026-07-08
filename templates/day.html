@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EatSnap · {{ record.date }}</title>
+  <style>
+    body { font: 14px/1.6 -apple-system, "PingFang SC", Arial, sans-serif; margin: 0; background: #f6f5f1; color: #1f1f1f; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .sub { color: #6b6b6b; font-size: 13px; margin-bottom: 20px; }
+    a { color: #2f7d52; text-decoration: none; }
+    .meal { background: #fff; border: 1px solid #e7e5df; border-radius: 10px; padding: 14px; margin-bottom: 16px; }
+    .meal h2 { margin: 0 0 8px; font-size: 16px; }
+    .entry { display: grid; grid-template-columns: 160px 1fr; gap: 12px; padding: 10px 0; border-top: 1px dashed #ece9e0; }
+    .entry:first-of-type { border-top: none; }
+    .entry img { width: 100%; height: 120px; object-fit: cover; border-radius: 8px; background: #ddd; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 4px 6px; text-align: left; font-size: 13px; }
+    th { color: #6b6b6b; font-weight: 500; }
+    .right { text-align: right; }
+    .subtotal { font-weight: 600; }
+    .status { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #eee; color: #555; }
+    .status.review { background: #fff3cd; color: #856404; }
+    .status.error { background: #f8d7da; color: #721c24; }
+    .meta { color: #999; font-size: 12px; }
+    .total { font-size: 18px; font-weight: 600; margin: 16px 0; }
+    .empty { color: #aaa; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p><a href="index.html">← 概览</a></p>
+    <h1>{{ record.date }}</h1>
+    <div class="sub">日合计：<strong>{{ record.daily_total_kcal }} kcal</strong></div>
+
+    {% for meal in ['早', '午', '晚', '加餐'] %}
+    <div class="meal">
+      <h2>{{ meal }}餐</h2>
+      {% set entries = record['meals'].get(meal, []) %}
+      {% if entries %}
+        {% for e in entries %}
+        <div class="entry">
+          <div>
+            {% if e.image %}<img src="images/{{ e.image }}" alt="">{% endif %}
+            <div class="meta">
+              {% if e.model %}模型：{{ e.model }} · {% endif %}
+              {{ e.identified_at or '' }}
+              <span class="status {{ e.status }}">{{ e.status }}</span>
+            </div>
+          </div>
+          <div>
+            {% if e.remark %}<div class="meta">备注：{{ e.remark }}</div>{% endif %}
+            {% set entry_items = e['items'] %}
+            {% if entry_items %}
+            <table>
+              <thead><tr><th>食物</th><th class="right">重量</th><th class="right">热量</th></tr></thead>
+              <tbody>
+                {% for it in entry_items %}
+                <tr>
+                  <td>{{ it.name }}{% if it.weight_approx %} <span class="meta">约</span>{% endif %}</td>
+                  <td class="right">{{ it.weight_g }} g</td>
+                  <td class="right">{{ it.calories_kcal }} kcal</td>
+                </tr>
+                {% endfor %}
+                <tr><td colspan="2" class="subtotal">小计</td><td class="right subtotal">{{ e.total_kcal }} kcal</td></tr>
+              </tbody>
+            </table>
+            {% else %}
+            <div class="empty">暂无条目（未识别或识别失败）</div>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty">无</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    <p class="meta">生成时间：{{ generated_at }}</p>
+  </div>
+</body>
+</html>
