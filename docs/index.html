@@ -2,25 +2,51 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>EatSnap · 概览</title>
   <style>
-    body { font: 14px/1.6 -apple-system, "PingFang SC", Arial, sans-serif; margin: 0; background: #f6f5f1; color: #1f1f1f; }
-    .wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px; }
+    :root { --bg:#f6f5f1; --card:#fff; --text:#1f1f1f; --muted:#6b6b6b; --line:#e7e5df; --line2:#f0eee8; --accent:#2f7d52; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+      font: 15px/1.55 -apple-system, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      -webkit-text-size-adjust: 100%; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 20px 14px 60px; }
     h1 { font-size: 22px; margin: 0 0 4px; }
-    .sub { color: #6b6b6b; font-size: 13px; margin-bottom: 20px; }
-    .summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 24px; }
-    .summary .box { background: #fff; border: 1px solid #e7e5df; border-radius: 10px; padding: 12px; text-align: center; }
-    .summary .box .v { font-size: 18px; font-weight: 600; }
-    .summary .box .k { color: #6b6b6b; font-size: 12px; }
-    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e7e5df; border-radius: 10px; overflow: hidden; }
-    th, td { padding: 8px 10px; border-bottom: 1px solid #f0eee8; text-align: left; }
-    th { background: #fafaf7; font-weight: 600; }
-    tr:last-child td { border-bottom: none; }
-    .bar { display: inline-block; height: 8px; background: #2f7d52; border-radius: 4px; vertical-align: middle; }
-    a { color: #2f7d52; text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover, a:active { text-decoration: underline; }
     .gen { color: #999; font-size: 12px; margin-top: 16px; }
+
+    /* 概览统计：手机单列堆叠，桌面横排 */
+    .summary { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 20px; }
+    .summary .box { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+      padding: 10px 14px; display: flex; align-items: baseline; justify-content: space-between; }
+    .summary .box .v { font-size: 18px; font-weight: 600; }
+    .summary .box .k { color: var(--muted); font-size: 13px; }
+
+    /* 桌面：横排 */
+    @media (min-width: 641px) {
+      .wrap { padding: 24px 16px; }
+      .summary { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+      .summary .box { flex-direction: column; align-items: center; text-align: center; gap: 2px; }
+    }
+
+    /* 日期列表：手机用卡片堆叠，桌面用表格 */
+    .day-list { display: flex; flex-direction: column; gap: 10px; }
+    .day-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px 14px; }
+    .day-card .head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .day-card .date { font-weight: 600; font-size: 15px; }
+    .day-card .date a { color: var(--text); }
+    .day-card .total { font-weight: 600; color: var(--accent); white-space: nowrap; }
+    .day-card .meals { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; font-size: 12px; color: var(--muted); }
+    .day-card .meals span b { color: var(--text); font-weight: 500; }
+    .day-card .bar { display: block; height: 6px; background: var(--accent); border-radius: 3px;
+      margin-top: 8px; max-width: 100%; }
+    .day-card .more { display: inline-block; margin-top: 8px; font-size: 13px; }
+
+    .empty { color: #aaa; font-style: italic; padding: 20px; text-align: center;
+      background: var(--card); border: 1px dashed var(--line); border-radius: 12px; }
   </style>
 </head>
 <body>
@@ -28,41 +54,31 @@
     <h1>EatSnap · 概览</h1>
     <div class="sub">共 1 天有记录（展示最近 1 天）</div>
 
+
     <div class="summary">
-      <div class="box"><div class="v">1</div><div class="k">有记录的天数</div></div>
-      <div class="box"><div class="v">14</div><div class="k">展示近 N 天</div></div>
-      <div class="box"><div class="v">870</div><div class="k">区间最高 kcal</div></div>
+      <div class="box"><span class="k">有记录的天数</span><span class="v">1</span></div>
+      <div class="box"><span class="k">展示近 N 天</span><span class="v">14</span></div>
+      <div class="box"><span class="k">区间最高 kcal</span><span class="v">870</span></div>
     </div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>日期</th>
-          <th>早</th>
-          <th>午</th>
-          <th>晚</th>
-          <th>加餐</th>
-          <th>日合计</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><a href="reports/2026-07-08.html">2026-07-08</a></td>
-          <td>870</td>
-          <td>0</td>
-          <td>0</td>
-          <td>0</td>
-          <td>
-            <span class="bar" style="width: 120px"></span>
-            <strong>870</strong> kcal
-          </td>
-          <td><a href="reports/2026-07-08.html">明细 →</a></td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="day-list">
+      <div class="day-card">
+        <div class="head">
+          <span class="date"><a href="reports/2026-07-08.html">2026-07-08</a></span>
+          <span class="total">870 kcal</span>
+        </div>
+        <div class="meals">
+          <span><b>早</b> 870</span>
+          <span><b>午</b> 0</span>
+          <span><b>晚</b> 0</span>
+          <span><b>加</b> 0</span>
+        </div>
+        <span class="bar" style="width: 100%"></span>
+        <a class="more" href="reports/2026-07-08.html">明细 →</a>
+      </div>
+    </div>
 
-    <p class="gen">生成时间：2026-07-08T16:27:59</p>
+    <p class="gen">生成时间：2026-07-08T16:36:21</p>
   </div>
 </body>
 </html>
