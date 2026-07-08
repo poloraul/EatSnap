@@ -94,3 +94,42 @@ def list_record_dates(cfg: AppConfig) -> list[str]:
     if not cfg.records_dir.exists():
         return []
     return sorted(p.stem for p in cfg.records_dir.glob("*.json"))
+
+
+def is_dirty_entry(entry: dict[str, Any]) -> bool:
+    """判定为脏条目：识别失败且没有解析出条目（status=error 且 items 为空）。"""
+    return entry.get("status") == STATUS_ERROR and not entry.get("items")
+
+
+def clean_dirty_entries(cfg: AppConfig, date: str) -> dict[str, Any]:
+    """删除指定日 records 中所有脏条目（is_dirty_entry 为真者），重算日合计。
+
+    Returns: {date, removed: [{meal, image, identified_at}], kept}
+    """
+    record = load_record(cfg, date)
+    removed: list[dict[str, Any]] = []
+    for meal, entries in record.get("meals", {}).items():
+        kept: list[dict[str, Any]] = []
+        for e in entries:
+            if is_dirty_entry(e):
+                removed.append(
+                    {
+                        "meal": meal,
+                        "image": e.get("image", ""),
+                        "identified_at": e.get("identified_at", ""),
+                    }
+                )
+            else:
+                kept.append(e)
+        record["meals"][meal] = kept
+    _recalc_total(record)
+    save_record(cfg, record)
+    return {"date": date, "removed": removed, "kept": sum(len(v) for v in record["meals"].values())}
+
+
+def clean_all_dirty(cfg: AppConfig) -> list[dict[str, Any]]:
+    """清理所有日期的脏条目。"""
+    results = []
+    for d in list_record_dates(cfg):
+        results.append(clean_dirty_entries(cfg, d))
+    return results

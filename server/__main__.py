@@ -1,4 +1,4 @@
-"""CLI 入口：python -m server identify|ingest|report"""
+"""CLI 入口：python -m server identify|ingest|report|clean"""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from datetime import date as _date
 
 from .config import load_config
 from .identify_runner import identify_date
+from .records import clean_all_dirty, clean_dirty_entries
 from .report import render_all, render_day
 from .storage import ingest_pending
 
@@ -60,7 +61,27 @@ def main_report(argv: list[str] | None = None) -> int:
     return 0
 
 
-_DISPATCH = {"identify": main_identify, "ingest": main_ingest, "report": main_report}
+def main_clean(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser(prog="python -m server clean")
+    _add_date_arg(p)
+    p.add_argument("--all", action="store_true", help="清理所有日期")
+    args = p.parse_args(argv)
+
+    cfg = load_config()
+    if args.all:
+        result = clean_all_dirty(cfg)
+    else:
+        result = clean_dirty_entries(cfg, args.date)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+_DISPATCH = {
+    "identify": main_identify,
+    "ingest": main_ingest,
+    "report": main_report,
+    "clean": main_clean,
+}
 
 
 if __name__ == "__main__":
